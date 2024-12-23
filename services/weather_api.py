@@ -1,30 +1,53 @@
 import requests
 from config import TOKEN_WEATHER
 
-API_KEY = TOKEN_WEATHER
 BASE_URL = "http://dataservice.accuweather.com"
 
-def get_weather(location: str, interval: str):
+def get_city_location(city_name: str):
+    """Получает ключ местоположения для города."""
+    url = f"{BASE_URL}/locations/v1/cities/search"
+    params = {"apikey": TOKEN_WEATHER, "q": city_name}
+    
     try:
-        # Получение ключа локации
-        location_url = f"{BASE_URL}/locations/v1/cities/search"
-        params = {"apikey": API_KEY, "q": location}
-        response = requests.get(location_url, params=params)
+        response = requests.get(url, params=params)
         response.raise_for_status()
-        location_key = response.json()[0]["Key"]
+        data = response.json()
+        if data:
+            return data[0]["Key"]  # Ключ местоположения
+        else:
+            return None
+    except (requests.RequestException, KeyError) as e:
+        print(f"Ошибка получения местоположения: {e}")
+        return None
 
-        # Получение прогноза
-        forecast_url = f"{BASE_URL}/forecasts/v1/daily/{interval}day/{location_key}"
-        response = requests.get(forecast_url, params={"apikey": API_KEY})
+def get_weather_forecast(city_name: str) -> str:
+    """Получает прогноз погоды для указанного города."""
+    location_key = get_city_location(city_name)
+    if not location_key:
+        return "Город не найден. Проверьте правильность написания."
+
+    url = f"{BASE_URL}/forecasts/v1/daily/1day/{location_key}"
+    params = {"apikey": TOKEN_WEATHER, "language": "ru", "metric": True}
+    
+    try:
+        response = requests.get(url, params=params)
         response.raise_for_status()
-        forecast = response.json()
+        data = response.json()
 
-        # Форматирование ответа
-        result = ""
-        for day in forecast["DailyForecasts"]:
-            result += f"Дата: {day['Date']}\n" \
-                      f"Температура: {day['Temperature']['Minimum']['Value']} - {day['Temperature']['Maximum']['Value']}°C\n" \
-                      f"Описание: {day['Day']['IconPhrase']}\n\n"
-        return result
-    except Exception as e:
-        return f"Ошибка получения прогноза: {e}"
+        # Извлечение данных из ответа API
+        forecast = data["DailyForecasts"][0]
+        date = forecast["Date"]
+        temperature = forecast["Temperature"]
+        min_temp = temperature["Minimum"]["Value"]
+        max_temp = temperature["Maximum"]["Value"]
+        weather_text = forecast["Day"]["IconPhrase"]
+
+        return (
+            f"Прогноз на {date[:10]}:\n"
+            f"Минимальная температура: {min_temp}°C\n"
+            f"Максимальная температура: {max_temp}°C\n"
+            f"Погодные условия: {weather_text}"
+        )
+    except (requests.RequestException, KeyError) as e:
+        print(f"Ошибка получения прогноза погоды: {e}")
+        return "Не удалось получить прогноз погоды. Попробуйте позже."

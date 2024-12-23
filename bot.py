@@ -1,19 +1,18 @@
-from aiogram import Bot, Dispatcher, types
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram import Bot, Dispatcher
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.utils import executor
 from config import TOKEN_BOT
+from handlers import start, help, weather
 
-
+# Инициализация бота и диспетчера
 bot = Bot(TOKEN_BOT)
-dp = Dispatcher(bot)
+storage = MemoryStorage()
+dp = Dispatcher(bot, storage=storage)
 
-@dp.message_handler(commands=["start"])
-async def start(message: types.Message):
-    await message.reply("Привет! Я помогу узнать прогноз погоды. Используй команду /help, чтобы узнать больше.")
-
-@dp.message_handler(commands=["help"])
-async def help_command(message: types.Message):
-    await message.reply("/start - начать\n/help - помощь\n/weather - прогноз погоды")
+# Регистрация хендлеров
+dp.register_message_handler(start.cmd_start, commands=["start"])
+dp.register_message_handler(help.cmd_help, commands=["help"])
+weather.register_handlers(dp)
 
 if __name__ == "__main__":
     executor.start_polling(dp)

@@ -1,33 +1,34 @@
-from aiogram.types import Message, CallbackQuery
-from aiogram.dispatcher.filters.state import State, StatesGroup
+from aiogram import types
 from aiogram.dispatcher import FSMContext
-from keyboards.interval import interval_keyboard
-from keyboards.confirm import confirm_keyboard
-from services.weather_api import get_weather
+from aiogram.dispatcher.filters.state import State, StatesGroup
+from services.weather_api import get_weather_forecast
 
-class WeatherState(StatesGroup):
-    location = State()
-    interval = State()
-    confirmation = State()
+# Определяем состояния
+class WeatherForm(StatesGroup):
+    city = State()
 
-async def cmd_weather(message: Message):
-    await message.answer("Введите город, чтобы узнать погоду:")
-    await WeatherState.location.set()
+# Обработчик команды /weather
+async def cmd_weather(message: types.Message):
+    """Запускает процесс получения прогноза погоды."""
+    await message.reply("Введите название города для получения прогноза погоды:")
+    await WeatherForm.city.set()  # Устанавливаем состояние
 
-async def process_location(message: Message, state: FSMContext):
-    await state.update_data(location=message.text)
-    await message.answer("Выберите временной интервал:", reply_markup=interval_keyboard())
-    await WeatherState.next()
+# Обработчик ввода города
+async def process_city(message: types.Message, state: FSMContext):
+    """Обрабатывает ввод города и выводит прогноз погоды."""
+    city = message.text
+    forecast = get_weather_forecast(city)
+    
+    if forecast:
+        await message.reply(forecast)
+    else:
+        await message.reply("Извините, не удалось получить данные. Попробуйте снова.")
+    
+    await state.finish()  # Завершаем состояние
 
-async def process_interval(callback: CallbackQuery, state: FSMContext):
-    await state.update_data(interval=callback.data)
-    data = await state.get_data()
-    await callback.message.answer(f"Вы запросили прогноз для {data['location']} на {data['interval']} дней. Подтвердите:", 
-                                   reply_markup=confirm_keyboard())
-    await WeatherState.next()
+# Регистрация хендлеров
+from aiogram.dispatcher import Dispatcher
 
-async def confirm(callback: CallbackQuery, state: FSMContext):
-    data = await state.get_data()
-    weather_data = get_weather(data['location'], data['interval'])
-    await callback.message.answer(weather_data)
-    await state.finish()
+def register_handlers(dp: Dispatcher):
+    dp.register_message_handler(cmd_weather, commands=["weather"])
+    dp.register_message_handler(process_city, state=WeatherForm.city)
