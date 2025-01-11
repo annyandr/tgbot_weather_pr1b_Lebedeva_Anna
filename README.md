@@ -20,7 +20,7 @@ Weather Bot — это Telegram-бот, предоставляющий прог�
   ## Установка
 1. Клонируйте репозиторий:
 ```bash
-git clone https://github.com/yourusername/weather_bot.git
+git clone https://github.com/annyandr/tgbot_weather_pr1b_Lebedeva_Anna/
 cd weather_bot
 ```
 2. Установите зависимости:
